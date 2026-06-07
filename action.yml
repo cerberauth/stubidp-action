@@ -1,24 +1,55 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: StubIdP
+description: Start a stub OpenID Connect identity provider for testing
+author: CerberAuth
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: shield
+  color: blue
 
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  port:
+    description: Port to run stubidp on
+    required: false
+    default: '8484'
+  client-id:
+    description: OIDC client ID (auto-generated if not provided)
+    required: false
+    default: ''
+  client-secret:
+    description: OIDC client secret (auto-generated if not provided)
+    required: false
+    default: ''
+  redirect-uri:
+    description: Allowed redirect URI for the OIDC client
     required: true
-    default: '1000'
+    default: ''
+  skip-prompt:
+    description: Auto-approve login/consent prompts for headless CI
+    required: false
+    default: 'true'
+  default-user:
+    description: JSON object of OIDC claims for the stub user
+    required: false
+    default: ''
+  version:
+    description:
+      Version of @cerberauth/stubidp to install (pin for reliable caching)
+    required: false
+    default: 'latest'
 
-# Define your outputs here.
 outputs:
-  time:
-    description: Your output description here
+  issuer:
+    description: OIDC issuer URL (e.g. http://localhost:8484)
+  discovery-url:
+    description: OIDC discovery URL
+  client-id:
+    description: OIDC client ID
+  client-secret:
+    description: OIDC client secret
+  port:
+    description: Port stubidp is running on
 
 runs:
   using: node24
   main: dist/index.js
+  post: dist/post.js

@@ -53,12 +53,41 @@ jobs:
         id: checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Action
+        run: npm run package
+
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
-          milliseconds: 2000
+          port: '8484'
+          redirect-uri: 'http://localhost:3000/callback'
 
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+      - name: Verify Output
+        run: |
+          if [ "${{ steps.test-action.outputs.issuer }}" != "http://localhost:8484" ]; then
+            echo "Unexpected issuer: ${{ steps.test-action.outputs.issuer }}"
+            exit 1
+          fi
+          if [ "${{ steps.test-action.outputs.discovery-url }}" != "http://localhost:8484/.well-known/openid-configuration" ]; then
+            echo "Unexpected discovery-url: ${{ steps.test-action.outputs.discovery-url }}"
+            exit 1
+          fi
+          if [ "${{ steps.test-action.outputs.port }}" != "8484" ]; then
+            echo "Unexpected port: ${{ steps.test-action.outputs.port }}"
+            exit 1
+          fi
+
+      - name: Verify StubIdP is running
+        run: |
+          curl --fail http://localhost:8484/.well-known/openid-configuration
