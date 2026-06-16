@@ -29757,12 +29757,6 @@ function setSecret(secret) {
  */
 function getInput(name, options) {
     const val = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] || '';
-    if (options && options.required && !val) {
-        throw new Error(`Input required and not supplied: ${name}`);
-    }
-    if (options && options.trimWhitespace === false) {
-        return val;
-    }
     return val.trim();
 }
 /**
@@ -75787,11 +75781,22 @@ async function run() {
         const port = getInput('port') || '8484';
         const clientId = getInput('client-id') || randomBytes(16).toString('hex');
         const clientSecret = getInput('client-secret') || randomBytes(16).toString('hex');
-        const redirectUri = getInput('redirect-uri', { required: true });
+        const redirectUri = getInput('redirect-uri');
         const skipPrompt = getInput('skip-prompt') || 'true';
         const defaultUser = getInput('default-user');
         const version = getInput('version') || 'latest';
         const issuer = getInput('issuer') || `http://localhost:${port}`;
+        const preset = getInput('preset');
+        const jwksFile = getInput('jwks-file');
+        const logLevel = getInput('log-level');
+        const rateLimitDisabled = getInput('rate-limit-disabled') || 'true';
+        const rateLimitWindowMs = getInput('rate-limit-window-ms');
+        const rateLimitMax = getInput('rate-limit-max');
+        const enableRegistration = getInput('enable-registration');
+        const registrationInitialAccessToken = getInput('registration-initial-access-token');
+        const trustProxy = getInput('trust-proxy');
+        const httpsRedirect = getInput('https-redirect');
+        const securityHeaders = getInput('security-headers');
         const installDir = path.join(os.homedir(), '.cache', 'stubidp-action');
         const cacheKey = `stubidp-npm-${process.platform}-v${version}`;
         const cacheHit = await restoreCache([installDir], cacheKey);
@@ -75813,7 +75818,7 @@ async function run() {
             STUBIDP_CLIENT_ID: clientId,
             STUBIDP_CLIENT_SECRET: clientSecret,
             STUBIDP_SKIP_PROMPT: skipPrompt,
-            STUBIDP_RATE_LIMIT_DISABLED: 'true'
+            STUBIDP_RATE_LIMIT_DISABLED: rateLimitDisabled
         };
         if (redirectUri) {
             env.STUBIDP_REDIRECT_URI = redirectUri;
@@ -75821,8 +75826,39 @@ async function run() {
         if (defaultUser) {
             env.STUBIDP_DEFAULT_USER = defaultUser;
         }
+        if (jwksFile) {
+            env.STUBIDP_JWKS_FILE = jwksFile;
+        }
+        if (logLevel) {
+            env.STUBIDP_LOG_LEVEL = logLevel;
+        }
+        if (rateLimitWindowMs) {
+            env.STUBIDP_RATE_LIMIT_WINDOW_MS = rateLimitWindowMs;
+        }
+        if (rateLimitMax) {
+            env.STUBIDP_RATE_LIMIT_MAX = rateLimitMax;
+        }
+        if (enableRegistration) {
+            env.STUBIDP_ENABLE_REGISTRATION = enableRegistration;
+        }
+        if (registrationInitialAccessToken) {
+            env.STUBIDP_REGISTRATION_INITIAL_ACCESS_TOKEN =
+                registrationInitialAccessToken;
+        }
+        if (trustProxy) {
+            env.STUBIDP_TRUST_PROXY = trustProxy;
+        }
+        if (httpsRedirect) {
+            env.STUBIDP_HTTPS_REDIRECT = httpsRedirect;
+        }
+        if (securityHeaders) {
+            env.STUBIDP_SECURITY_HEADERS = securityHeaders;
+        }
+        const args = [];
+        if (preset)
+            args.push('--preset', preset);
         debug(`Starting stubidp on port ${port}`);
-        const child = spawn(stubidpBin, [], {
+        const child = spawn(stubidpBin, args, {
             env,
             detached: true,
             stdio: 'ignore'

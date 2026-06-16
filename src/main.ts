@@ -13,11 +13,24 @@ export async function run(): Promise<void> {
       core.getInput('client-id') || randomBytes(16).toString('hex')
     const clientSecret =
       core.getInput('client-secret') || randomBytes(16).toString('hex')
-    const redirectUri = core.getInput('redirect-uri', { required: true })
+    const redirectUri = core.getInput('redirect-uri')
     const skipPrompt = core.getInput('skip-prompt') || 'true'
     const defaultUser = core.getInput('default-user')
     const version = core.getInput('version') || 'latest'
     const issuer = core.getInput('issuer') || `http://localhost:${port}`
+    const preset = core.getInput('preset')
+    const jwksFile = core.getInput('jwks-file')
+    const logLevel = core.getInput('log-level')
+    const rateLimitDisabled = core.getInput('rate-limit-disabled') || 'true'
+    const rateLimitWindowMs = core.getInput('rate-limit-window-ms')
+    const rateLimitMax = core.getInput('rate-limit-max')
+    const enableRegistration = core.getInput('enable-registration')
+    const registrationInitialAccessToken = core.getInput(
+      'registration-initial-access-token'
+    )
+    const trustProxy = core.getInput('trust-proxy')
+    const httpsRedirect = core.getInput('https-redirect')
+    const securityHeaders = core.getInput('security-headers')
 
     const installDir = path.join(os.homedir(), '.cache', 'stubidp-action')
     const cacheKey = `stubidp-npm-${process.platform}-v${version}`
@@ -52,7 +65,7 @@ export async function run(): Promise<void> {
       STUBIDP_CLIENT_ID: clientId,
       STUBIDP_CLIENT_SECRET: clientSecret,
       STUBIDP_SKIP_PROMPT: skipPrompt,
-      STUBIDP_RATE_LIMIT_DISABLED: 'true'
+      STUBIDP_RATE_LIMIT_DISABLED: rateLimitDisabled
     }
 
     if (redirectUri) {
@@ -61,9 +74,40 @@ export async function run(): Promise<void> {
     if (defaultUser) {
       env.STUBIDP_DEFAULT_USER = defaultUser
     }
+    if (jwksFile) {
+      env.STUBIDP_JWKS_FILE = jwksFile
+    }
+    if (logLevel) {
+      env.STUBIDP_LOG_LEVEL = logLevel
+    }
+    if (rateLimitWindowMs) {
+      env.STUBIDP_RATE_LIMIT_WINDOW_MS = rateLimitWindowMs
+    }
+    if (rateLimitMax) {
+      env.STUBIDP_RATE_LIMIT_MAX = rateLimitMax
+    }
+    if (enableRegistration) {
+      env.STUBIDP_ENABLE_REGISTRATION = enableRegistration
+    }
+    if (registrationInitialAccessToken) {
+      env.STUBIDP_REGISTRATION_INITIAL_ACCESS_TOKEN =
+        registrationInitialAccessToken
+    }
+    if (trustProxy) {
+      env.STUBIDP_TRUST_PROXY = trustProxy
+    }
+    if (httpsRedirect) {
+      env.STUBIDP_HTTPS_REDIRECT = httpsRedirect
+    }
+    if (securityHeaders) {
+      env.STUBIDP_SECURITY_HEADERS = securityHeaders
+    }
+
+    const args: string[] = []
+    if (preset) args.push('--preset', preset)
 
     core.debug(`Starting stubidp on port ${port}`)
-    const child = spawn(stubidpBin, [], {
+    const child = spawn(stubidpBin, args, {
       env,
       detached: true,
       stdio: 'ignore'
