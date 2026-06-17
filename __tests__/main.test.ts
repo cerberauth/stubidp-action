@@ -17,11 +17,23 @@ const { run } = await import('../src/main.js')
 
 const defaultInputs: Record<string, string> = {
   port: '8484',
+  issuer: '',
   'client-id': '',
   'client-secret': '',
   'redirect-uri': '',
   'skip-prompt': 'true',
   'default-user': '',
+  preset: '',
+  'jwks-file': '',
+  'log-level': '',
+  'rate-limit-disabled': 'true',
+  'rate-limit-window-ms': '',
+  'rate-limit-max': '',
+  'enable-registration': '',
+  'registration-initial-access-token': '',
+  'trust-proxy': '',
+  'https-redirect': '',
+  'security-headers': '',
   version: 'latest'
 }
 
@@ -159,5 +171,20 @@ describe('main.ts', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledWith('binary not found')
+  })
+
+  it('passes --preset arg when provided', async () => {
+    core.getInput.mockImplementation((name) => {
+      if (name === 'preset') return 'next-auth'
+      return defaultInputs[name] ?? ''
+    })
+
+    await run()
+
+    expect(spawn).toHaveBeenCalledWith(
+      expect.stringContaining('stubidp'),
+      ['--preset', 'next-auth'],
+      expect.objectContaining({ detached: true })
+    )
   })
 })
