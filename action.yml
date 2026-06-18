@@ -83,6 +83,16 @@ inputs:
     description: Enable security headers (CSP, HSTS, etc.) via helmet
     required: false
     default: ''
+  post-logout-redirect-uri:
+    description: Allowed post-logout redirect URI
+    required: false
+    default: ''
+  public-client:
+    description: >-
+      Configure as public client (no client_secret,
+      token_endpoint_auth_method=none). For SPAs and native apps
+    required: false
+    default: ''
   version:
     description:
       Version of @cerberauth/stubidp to install (pin for reliable caching)

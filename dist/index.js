@@ -75797,6 +75797,8 @@ async function run() {
         const trustProxy = getInput('trust-proxy');
         const httpsRedirect = getInput('https-redirect');
         const securityHeaders = getInput('security-headers');
+        const postLogoutRedirectUri = getInput('post-logout-redirect-uri');
+        const publicClient = getInput('public-client');
         const installDir = path.join(os.homedir(), '.cache', 'stubidp-action');
         const cacheKey = `stubidp-npm-${process.platform}-v${version}`;
         const cacheHit = await restoreCache([installDir], cacheKey);
@@ -75853,6 +75855,12 @@ async function run() {
         }
         if (securityHeaders) {
             env.STUBIDP_SECURITY_HEADERS = securityHeaders;
+        }
+        if (postLogoutRedirectUri) {
+            env.STUBIDP_POST_LOGOUT_REDIRECT_URI = postLogoutRedirectUri;
+        }
+        if (publicClient) {
+            env.STUBIDP_PUBLIC_CLIENT = publicClient;
         }
         const args = [];
         if (preset)
