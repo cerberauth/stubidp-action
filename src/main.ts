@@ -31,6 +31,8 @@ export async function run(): Promise<void> {
     const trustProxy = core.getInput('trust-proxy')
     const httpsRedirect = core.getInput('https-redirect')
     const securityHeaders = core.getInput('security-headers')
+    const postLogoutRedirectUri = core.getInput('post-logout-redirect-uri')
+    const publicClient = core.getInput('public-client')
 
     const installDir = path.join(os.homedir(), '.cache', 'stubidp-action')
     const cacheKey = `stubidp-npm-${process.platform}-v${version}`
@@ -101,6 +103,12 @@ export async function run(): Promise<void> {
     }
     if (securityHeaders) {
       env.STUBIDP_SECURITY_HEADERS = securityHeaders
+    }
+    if (postLogoutRedirectUri) {
+      env.STUBIDP_POST_LOGOUT_REDIRECT_URI = postLogoutRedirectUri
+    }
+    if (publicClient) {
+      env.STUBIDP_PUBLIC_CLIENT = publicClient
     }
 
     const args: string[] = []

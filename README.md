@@ -32,17 +32,18 @@ steps:
 
 ### Core
 
-| Input           | Description                                                   | Default                   |
-| --------------- | ------------------------------------------------------------- | ------------------------- |
-| `port`          | Port to run StubIdP on                                        | `8484`                    |
-| `issuer`        | OIDC issuer URL                                               | `http://localhost:<port>` |
-| `client-id`     | OIDC client ID                                                | auto-generated            |
-| `client-secret` | OIDC client secret                                            | auto-generated            |
-| `redirect-uri`  | Allowed redirect URI for the OIDC client                      | —                         |
-| `skip-prompt`   | Auto-approve login/consent prompts for headless CI            | `true`                    |
-| `default-user`  | JSON object of OIDC claims for the stub user                  | —                         |
-| `preset`        | Preconfigure for an auth library (`better-auth`, `next-auth`) | —                         |
-| `version`       | Version of `@cerberauth/stubidp` to install                   | `latest`                  |
+| Input           | Description                                                                              | Default                   |
+| --------------- | ---------------------------------------------------------------------------------------- | ------------------------- |
+| `port`          | Port to run StubIdP on                                                                   | `8484`                    |
+| `issuer`        | OIDC issuer URL                                                                          | `http://localhost:<port>` |
+| `client-id`     | OIDC client ID                                                                           | auto-generated            |
+| `client-secret` | OIDC client secret                                                                       | auto-generated            |
+| `redirect-uri`  | Allowed redirect URI for the OIDC client                                                 | —                         |
+| `skip-prompt`   | Auto-approve login/consent prompts for headless CI                                       | `true`                    |
+| `default-user`  | JSON object of OIDC claims for the stub user                                             | —                         |
+| `preset`        | Preconfigure for an auth library (`better-auth`, `next-auth`)                            | —                         |
+| `public-client` | Public client mode (`token_endpoint_auth_method=none`, no secret) — for SPAs/native apps | —                         |
+| `version`       | Version of `@cerberauth/stubidp` to install                                              | `latest`                  |
 
 When `client-id` or `client-secret` are not provided, random 16-byte hex values
 are generated and exposed via outputs.
@@ -81,6 +82,12 @@ are generated and exposed via outputs.
 | `trust-proxy`      | Trust reverse proxy headers (`X-Forwarded-*`)        | —       |
 | `https-redirect`   | Redirect HTTP requests to HTTPS                      | —       |
 | `security-headers` | Enable security headers (CSP, HSTS, etc.) via helmet | —       |
+
+### Logout
+
+| Input                      | Description                      | Default |
+| -------------------------- | -------------------------------- | ------- |
+| `post-logout-redirect-uri` | Allowed post-logout redirect URI | —       |
 
 ## Outputs
 
