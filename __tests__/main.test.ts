@@ -43,9 +43,10 @@ function spawnEnv(): NodeJS.ProcessEnv {
 }
 
 describe('main.ts', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stubidp-action-'))
+  let tmp: string
 
   beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stubidp-action-'))
     process.env.RUNNER_TEMP = tmp
     inputs = { ...defaultInputs }
     core.getInput.mockImplementation((name) => inputs[name] ?? '')
@@ -57,9 +58,6 @@ describe('main.ts', () => {
 
   afterEach(() => {
     jest.resetAllMocks()
-  })
-
-  afterAll(() => {
     delete process.env.RUNNER_TEMP
     fs.rmSync(tmp, { recursive: true, force: true })
   })
