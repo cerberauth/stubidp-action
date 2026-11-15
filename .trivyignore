@@ -1,0 +1,5 @@
+# minimatch ReDoS via crafted glob patterns, pulled in by @actions/cache > @actions/glob.
+# The fix (minimatch 11) removes Minimatch#matchOne, which @actions/glob calls, so it
+# cannot be overridden. Not exploitable here: glob patterns come from the action's own
+# cache paths, never from user input. Remove once @actions/glob supports minimatch 11.
+CVE-2026-118764 exp:2027-02-15
