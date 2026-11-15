@@ -127,6 +127,9 @@ function issueCommand(command, properties, message) {
     const cmd = new Command(command, properties, message);
     process.stdout.write(cmd.toString() + os.EOL);
 }
+function issue(name, message = '') {
+    issueCommand(name, {}, message);
+}
 const CMD_STRING = '::';
 class Command {
     constructor(command, properties, message) {
@@ -47616,6 +47619,22 @@ function warning(message, properties = {}) {
  */
 function info(message) {
     process.stdout.write(message + os.EOL);
+}
+/**
+ * Begin an output group.
+ *
+ * Output until the next `groupEnd` will be foldable in this group
+ *
+ * @param name The name of the output group
+ */
+function startGroup(name) {
+    issue('group', name);
+}
+/**
+ * End an output group.
+ */
+function endGroup() {
+    issue('endgroup');
 }
 //-----------------------------------------------------------------------
 // Wrapper action state
@@ -97385,13 +97404,17 @@ function restoreCacheV2(paths_1, primaryKey_1, restoreKeys_1, options_1) {
     });
 }
 
+/**
+ * Polls the OpenID Connect discovery endpoint until it answers, then returns
+ * the parsed provider metadata.
+ */
 async function waitForReady(url, timeoutMs = 30000, intervalMs = 500) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         try {
             const res = await fetch(url);
             if (res.ok)
-                return;
+                return (await res.json());
         }
         catch {
             // not ready yet
@@ -97401,38 +97424,147 @@ async function waitForReady(url, timeoutMs = 30000, intervalMs = 500) {
     throw new Error(`stubidp did not become ready within ${timeoutMs}ms`);
 }
 
+const PACKAGE = '@cerberauth/stubidp';
+/**
+ * Action inputs forwarded verbatim to stubidp as STUBIDP_* environment
+ * variables when set. Inputs that need special handling (port, issuer, client
+ * credentials, redirect URI, preset, version) are handled separately.
+ */
+const ENV_INPUTS = {
+    'skip-prompt': 'STUBIDP_SKIP_PROMPT',
+    'default-user': 'STUBIDP_DEFAULT_USER',
+    'post-logout-redirect-uri': 'STUBIDP_POST_LOGOUT_REDIRECT_URI',
+    scopes: 'STUBIDP_SCOPES',
+    claims: 'STUBIDP_CLAIMS',
+    // Signing keys
+    'jwks-file': 'STUBIDP_JWKS_FILE',
+    jwks: 'STUBIDP_JWKS',
+    // Tokens
+    'access-token-format': 'STUBIDP_ACCESS_TOKEN_FORMAT',
+    'access-token-ttl': 'STUBIDP_ACCESS_TOKEN_TTL',
+    'id-token-ttl': 'STUBIDP_ID_TOKEN_TTL',
+    'refresh-token-ttl': 'STUBIDP_REFRESH_TOKEN_TTL',
+    'session-ttl': 'STUBIDP_SESSION_TTL',
+    'id-token-includes-userinfo-claims': 'STUBIDP_ID_TOKEN_INCLUDES_USERINFO_CLAIMS',
+    'interaction-path': 'STUBIDP_INTERACTION_PATH',
+    // Logging / telemetry
+    'log-level': 'STUBIDP_LOG_LEVEL',
+    'disable-telemetry': 'STUBIDP_DISABLE_TELEMETRY',
+    // Rate limiting
+    'rate-limit-disabled': 'STUBIDP_RATE_LIMIT_DISABLED',
+    'rate-limit-window-ms': 'STUBIDP_RATE_LIMIT_WINDOW_MS',
+    'rate-limit-max': 'STUBIDP_RATE_LIMIT_MAX',
+    // Dynamic client registration
+    'enable-registration': 'STUBIDP_ENABLE_REGISTRATION',
+    'registration-initial-access-token': 'STUBIDP_REGISTRATION_INITIAL_ACCESS_TOKEN',
+    // Client ID Metadata Documents
+    'enable-cimd': 'STUBIDP_ENABLE_CIMD',
+    'cimd-trusted-origins': 'STUBIDP_CIMD_TRUSTED_ORIGINS',
+    // JWT introspection / userinfo responses
+    'enable-jwt-introspection': 'STUBIDP_ENABLE_JWT_INTROSPECTION',
+    'introspection-signed-response-alg': 'STUBIDP_INTROSPECTION_SIGNED_RESPONSE_ALG',
+    'enable-jwt-userinfo': 'STUBIDP_ENABLE_JWT_USERINFO',
+    'userinfo-signed-response-alg': 'STUBIDP_USERINFO_SIGNED_RESPONSE_ALG',
+    // JWT-Secured Authorization Requests
+    'enable-jar': 'STUBIDP_ENABLE_JAR',
+    'request-object-signing-alg': 'STUBIDP_REQUEST_OBJECT_SIGNING_ALG',
+    'require-signed-request-object': 'STUBIDP_REQUIRE_SIGNED_REQUEST_OBJECT',
+    // Static client public keys
+    'client-jwks': 'STUBIDP_CLIENT_JWKS',
+    'client-jwks-file': 'STUBIDP_CLIENT_JWKS_FILE',
+    'client-jwks-uri': 'STUBIDP_CLIENT_JWKS_URI',
+    // Security / proxy
+    'trust-proxy': 'STUBIDP_TRUST_PROXY',
+    'https-redirect': 'STUBIDP_HTTPS_REDIRECT',
+    'security-headers': 'STUBIDP_SECURITY_HEADERS'
+};
+/** Discovery metadata fields exposed as action outputs. */
+const DISCOVERY_OUTPUTS = {
+    'authorization-endpoint': 'authorization_endpoint',
+    'token-endpoint': 'token_endpoint',
+    'userinfo-endpoint': 'userinfo_endpoint',
+    'jwks-uri': 'jwks_uri',
+    'end-session-endpoint': 'end_session_endpoint',
+    'introspection-endpoint': 'introspection_endpoint',
+    'revocation-endpoint': 'revocation_endpoint',
+    'registration-endpoint': 'registration_endpoint'
+};
+const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+/**
+ * Resolves a dist-tag or range (e.g. `latest`, `^0.6`) to a concrete version so
+ * the cache key changes when a new stubidp release is published.
+ */
+function resolveVersion(version) {
+    if (EXACT_VERSION.test(version))
+        return version;
+    try {
+        const out = execFileSync('npm', ['view', `${PACKAGE}@${version}`, 'version', '--json'], { encoding: 'utf8' });
+        const parsed = JSON.parse(String(out).trim());
+        const resolved = Array.isArray(parsed) ? parsed[parsed.length - 1] : parsed;
+        if (typeof resolved === 'string' && resolved)
+            return resolved;
+    }
+    catch (err) {
+        warning(`Could not resolve ${PACKAGE}@${version}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return version;
+}
+/** Truthy check matching core.getBooleanInput, but tolerant of empty input. */
+function getFlag(name) {
+    return ['true', 'True', 'TRUE'].includes(getInput(name));
+}
+function printLog(logFile) {
+    try {
+        const content = fs.readFileSync(logFile, 'utf8').trim();
+        if (!content)
+            return;
+        startGroup('stubidp log');
+        info(content);
+        endGroup();
+    }
+    catch {
+        // no log available
+    }
+}
 async function run() {
+    let logFile = '';
     try {
         const port = getInput('port') || '8484';
-        const clientId = getInput('client-id') || randomBytes(16).toString('hex');
-        const clientSecret = getInput('client-secret') || randomBytes(16).toString('hex');
-        const redirectUri = getInput('redirect-uri');
-        const skipPrompt = getInput('skip-prompt') || 'true';
-        const defaultUser = getInput('default-user');
-        const version = getInput('version') || 'latest';
         const issuer = getInput('issuer') || `http://localhost:${port}`;
+        const redirectUri = getInput('redirect-uri');
         const preset = getInput('preset');
-        const jwksFile = getInput('jwks-file');
-        const logLevel = getInput('log-level');
-        const rateLimitDisabled = getInput('rate-limit-disabled') || 'true';
-        const rateLimitWindowMs = getInput('rate-limit-window-ms');
-        const rateLimitMax = getInput('rate-limit-max');
-        const enableRegistration = getInput('enable-registration');
-        const registrationInitialAccessToken = getInput('registration-initial-access-token');
-        const trustProxy = getInput('trust-proxy');
-        const httpsRedirect = getInput('https-redirect');
-        const securityHeaders = getInput('security-headers');
-        const postLogoutRedirectUri = getInput('post-logout-redirect-uri');
-        const publicClient = getInput('public-client');
+        const publicClient = getFlag('public-client');
+        const enableRegistration = getFlag('enable-registration');
+        const requestedVersion = getInput('version') || 'latest';
+        if (!redirectUri && !preset && !enableRegistration) {
+            throw new Error('One of `redirect-uri`, `preset` or `enable-registration: true` is required');
+        }
+        // stubidp only creates the static client when a redirect URI is known
+        // (explicitly or from a preset).
+        const hasStaticClient = Boolean(redirectUri || preset);
+        const clientId = hasStaticClient
+            ? getInput('client-id') || randomBytes(16).toString('hex')
+            : '';
+        let clientSecret = '';
+        if (hasStaticClient && !publicClient) {
+            clientSecret =
+                getInput('client-secret') || randomBytes(16).toString('hex');
+        }
+        else if (publicClient && getInput('client-secret')) {
+            warning('`client-secret` is ignored when `public-client` is true');
+        }
+        if (clientSecret)
+            setSecret(clientSecret);
+        const version = resolveVersion(requestedVersion);
         const installDir = path$1.join(os.homedir(), '.cache', 'stubidp-action');
         const cacheKey = `stubidp-npm-${process.platform}-v${version}`;
         const cacheHit = await restoreCache([installDir], cacheKey);
         if (!cacheHit) {
-            debug(`Installing @cerberauth/stubidp@${version}`);
-            execFileSync('npm', ['install', '--prefix', installDir, `@cerberauth/stubidp@${version}`], { stdio: 'inherit' });
+            info(`Installing ${PACKAGE}@${version}`);
+            execFileSync('npm', ['install', '--prefix', installDir, `${PACKAGE}@${version}`], { stdio: 'inherit' });
         }
         else {
-            debug(`Restored @cerberauth/stubidp from cache (key: ${cacheKey})`);
+            debug(`Restored ${PACKAGE} from cache (key: ${cacheKey})`);
         }
         saveState('installDir', installDir);
         saveState('cacheKey', cacheKey);
@@ -97441,76 +97573,59 @@ async function run() {
         const env = {
             ...process.env,
             STUBIDP_PORT: port,
-            STUBIDP_ISSUER: issuer,
-            STUBIDP_CLIENT_ID: clientId,
-            STUBIDP_CLIENT_SECRET: clientSecret,
-            STUBIDP_SKIP_PROMPT: skipPrompt,
-            STUBIDP_RATE_LIMIT_DISABLED: rateLimitDisabled
+            STUBIDP_ISSUER: issuer
         };
-        if (redirectUri) {
+        if (redirectUri)
             env.STUBIDP_REDIRECT_URI = redirectUri;
-        }
-        if (defaultUser) {
-            env.STUBIDP_DEFAULT_USER = defaultUser;
-        }
-        if (jwksFile) {
-            env.STUBIDP_JWKS_FILE = jwksFile;
-        }
-        if (logLevel) {
-            env.STUBIDP_LOG_LEVEL = logLevel;
-        }
-        if (rateLimitWindowMs) {
-            env.STUBIDP_RATE_LIMIT_WINDOW_MS = rateLimitWindowMs;
-        }
-        if (rateLimitMax) {
-            env.STUBIDP_RATE_LIMIT_MAX = rateLimitMax;
-        }
-        if (enableRegistration) {
-            env.STUBIDP_ENABLE_REGISTRATION = enableRegistration;
-        }
-        if (registrationInitialAccessToken) {
-            env.STUBIDP_REGISTRATION_INITIAL_ACCESS_TOKEN =
-                registrationInitialAccessToken;
-        }
-        if (trustProxy) {
-            env.STUBIDP_TRUST_PROXY = trustProxy;
-        }
-        if (httpsRedirect) {
-            env.STUBIDP_HTTPS_REDIRECT = httpsRedirect;
-        }
-        if (securityHeaders) {
-            env.STUBIDP_SECURITY_HEADERS = securityHeaders;
-        }
-        if (postLogoutRedirectUri) {
-            env.STUBIDP_POST_LOGOUT_REDIRECT_URI = postLogoutRedirectUri;
-        }
-        if (publicClient) {
-            env.STUBIDP_PUBLIC_CLIENT = publicClient;
+        if (clientId)
+            env.STUBIDP_CLIENT_ID = clientId;
+        if (clientSecret)
+            env.STUBIDP_CLIENT_SECRET = clientSecret;
+        if (publicClient)
+            env.STUBIDP_PUBLIC_CLIENT = 'true';
+        for (const [input, name] of Object.entries(ENV_INPUTS)) {
+            const value = getInput(input);
+            if (value)
+                env[name] = value;
         }
         const args = [];
         if (preset)
             args.push('--preset', preset);
-        debug(`Starting stubidp on port ${port}`);
+        logFile = path$1.join(process.env.RUNNER_TEMP || os.tmpdir(), `stubidp-${port}.log`);
+        const logFd = fs.openSync(logFile, 'w');
+        info(`Starting stubidp ${version} on port ${port}`);
         const child = spawn(stubidpBin, args, {
             env,
             detached: true,
-            stdio: 'ignore'
+            stdio: ['ignore', logFd, logFd]
         });
+        fs.closeSync(logFd);
         child.unref();
         saveState('pid', String(child.pid));
+        saveState('logFile', logFile);
+        const exited = new Promise((_, reject) => {
+            child.on('exit', (code, signal) => reject(new Error(`stubidp exited before becoming ready (${signal ?? `code ${code}`})`)));
+        });
         const discoveryUrl = `${issuer}/.well-known/openid-configuration`;
         debug(`Waiting for stubidp at ${discoveryUrl}`);
-        await waitForReady(discoveryUrl);
+        const metadata = await Promise.race([waitForReady(discoveryUrl), exited]);
         setOutput('issuer', issuer);
         setOutput('discovery-url', discoveryUrl);
         setOutput('client-id', clientId);
         setOutput('client-secret', clientSecret);
         setOutput('port', port);
+        setOutput('version', version);
+        setOutput('log-file', logFile);
+        for (const [output, field] of Object.entries(DISCOVERY_OUTPUTS)) {
+            const value = metadata[field];
+            setOutput(output, typeof value === 'string' ? value : '');
+        }
         info(`stubidp ready at ${issuer}`);
     }
     catch (error) {
-        if (error instanceof Error)
-            setFailed(error.message);
+        if (logFile)
+            printLog(logFile);
+        setFailed(error instanceof Error ? error.message : String(error));
     }
 }
 

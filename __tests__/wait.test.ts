@@ -9,18 +9,22 @@ describe('waitForReady', () => {
   it('resolves when endpoint returns ok', async () => {
     jest
       .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response('{"issuer":"http://localhost:8484"}', { status: 200 })
+      )
 
     await expect(
       waitForReady('http://localhost:8484/.well-known/openid-configuration')
-    ).resolves.toBeUndefined()
+    ).resolves.toEqual({ issuer: 'http://localhost:8484' })
   })
 
   it('retries on non-ok response then resolves', async () => {
     jest
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response('{"issuer":"http://localhost:8484"}', { status: 200 })
+      )
 
     await expect(
       waitForReady(
@@ -28,7 +32,7 @@ describe('waitForReady', () => {
         5000,
         10
       )
-    ).resolves.toBeUndefined()
+    ).resolves.toEqual({ issuer: 'http://localhost:8484' })
 
     expect(global.fetch).toHaveBeenCalledTimes(2)
   })

@@ -24,7 +24,9 @@ inputs:
     required: false
     default: ''
   redirect-uri:
-    description: Allowed redirect URI for the OIDC client
+    description: >-
+      Allowed redirect URI for the OIDC client. Required unless `preset` or
+      `enable-registration` is set
     required: false
     default: ''
   skip-prompt:
@@ -41,7 +43,9 @@ inputs:
     required: false
     default: ''
   jwks-file:
-    description: Path to a JWKS JSON file (key pair auto-generated if omitted)
+    description: >-
+      Path to a JWKS JSON file with the signing keys (key pair auto-generated if
+      omitted). Generate one with `npx -p @cerberauth/stubidp stubidp-jwks`
     required: false
     default: ''
   log-level:
@@ -90,7 +94,136 @@ inputs:
   public-client:
     description: >-
       Configure as public client (no client_secret,
-      token_endpoint_auth_method=none). For SPAs and native apps
+      token_endpoint_auth_method=none). For SPAs and native apps.
+      `client-secret` is ignored and the output is empty
+    required: false
+    default: ''
+  jwks:
+    description: >-
+      Inline JWKS JSON with the signing keys (private keys), an alternative to
+      `jwks-file`. Pass it from a secret
+    required: false
+    default: ''
+  scopes:
+    description: >-
+      Comma-separated list of supported scopes (default:
+      openid,offline_access,email,profile,phone,address)
+    required: false
+    default: ''
+  claims:
+    description: >-
+      JSON object mapping scope names to claim arrays, overriding auto-derived
+      claims
+    required: false
+    default: ''
+  access-token-format:
+    description: >-
+      Access token format: `opaque` (default) or `jwt`
+    required: false
+    default: ''
+  access-token-ttl:
+    description: >-
+      Access token lifetime in seconds, including client credentials tokens
+      (default 3600)
+    required: false
+    default: ''
+  id-token-ttl:
+    description: >-
+      ID token lifetime in seconds (default 3600)
+    required: false
+    default: ''
+  refresh-token-ttl:
+    description: >-
+      Refresh token lifetime in seconds (default 1209600 = 14 days)
+    required: false
+    default: ''
+  session-ttl:
+    description: >-
+      Login session lifetime in seconds (default 1209600 = 14 days)
+    required: false
+    default: ''
+  id-token-includes-userinfo-claims:
+    description: >-
+      Include email/profile/etc. claims directly in the ID token instead of
+      requiring a UserInfo call
+    required: false
+    default: ''
+  interaction-path:
+    description: >-
+      Base path for the login/consent interaction UI (default /interaction)
+    required: false
+    default: ''
+  disable-telemetry:
+    description: >-
+      Disable stubidp CLI usage analytics and the telemetry script on its HTML
+      pages
+    required: false
+    default: ''
+  enable-cimd:
+    description: >-
+      Enable OAuth Client ID Metadata Document support (draft-02)
+    required: false
+    default: ''
+  cimd-trusted-origins:
+    description: >-
+      Comma-separated trusted origins for client_id metadata documents (prefix
+      match if ending in `/`, else exact; default
+      https://cimd.cerberauth.com/t/)
+    required: false
+    default: ''
+  enable-jwt-introspection:
+    description: >-
+      Enable JWT Response for OAuth Token Introspection (RFC 9701)
+    required: false
+    default: ''
+  introspection-signed-response-alg:
+    description: >-
+      Signing algorithm (e.g. RS256) for JWT introspection responses on the
+      static client. Requires `enable-jwt-introspection`
+    required: false
+    default: ''
+  enable-jwt-userinfo:
+    description: >-
+      Enable JWT UserInfo responses (OIDC Core 5.3.2)
+    required: false
+    default: ''
+  userinfo-signed-response-alg:
+    description: >-
+      Signing algorithm (e.g. RS256) for JWT UserInfo responses on the static
+      client. Requires `enable-jwt-userinfo`
+    required: false
+    default: ''
+  enable-jar:
+    description: >-
+      Enable JWT-Secured Authorization Requests (JAR, RFC 9101)
+    required: false
+    default: ''
+  request-object-signing-alg:
+    description: >-
+      Signing algorithm (e.g. RS256, HS256) for Request Objects on the static
+      client. Requires `enable-jar`
+    required: false
+    default: ''
+  require-signed-request-object:
+    description: >-
+      Require authorization requests to use signed Request Objects. Requires
+      `enable-jar`
+    required: false
+    default: ''
+  client-jwks:
+    description: >-
+      Inline JWKS JSON with the static client public keys (e.g. to verify
+      asymmetric JAR request objects)
+    required: false
+    default: ''
+  client-jwks-file:
+    description: >-
+      Path to a JWKS JSON file with the static client public keys
+    required: false
+    default: ''
+  client-jwks-uri:
+    description: >-
+      URL of the JWKS document with the static client public keys
     required: false
     default: ''
   version:
@@ -105,11 +238,33 @@ outputs:
   discovery-url:
     description: OIDC discovery URL
   client-id:
-    description: OIDC client ID
+    description: OIDC client ID (empty in registration-only mode)
   client-secret:
-    description: OIDC client secret
+    description: OIDC client secret (empty for public clients)
   port:
     description: Port stubidp is running on
+  version:
+    description: Resolved version of @cerberauth/stubidp that was started
+  log-file:
+    description: Path to the stubidp server log file
+  authorization-endpoint:
+    description: Authorization endpoint URL
+  token-endpoint:
+    description: Token endpoint URL
+  userinfo-endpoint:
+    description: UserInfo endpoint URL
+  jwks-uri:
+    description: JWKS URL with the provider's public signing keys
+  end-session-endpoint:
+    description: End session (logout) endpoint URL
+  introspection-endpoint:
+    description: Token introspection endpoint URL
+  revocation-endpoint:
+    description: Token revocation endpoint URL
+  registration-endpoint:
+    description: >-
+      Dynamic client registration endpoint URL (empty unless
+      `enable-registration` is true)
 
 runs:
   using: node24
