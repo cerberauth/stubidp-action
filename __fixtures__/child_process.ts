@@ -3,6 +3,7 @@ import { jest } from '@jest/globals'
 
 export const mockChildProcess = {
   unref: jest.fn(),
+  on: jest.fn(),
   pid: 12345
 } as unknown as ChildProcess
 

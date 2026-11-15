@@ -50,3 +50,27 @@ jobs:
       - name: Verify StubIdP is running
         run: |
           curl --fail http://localhost:8484/.well-known/openid-configuration
+
+      - name: Test Public Client with JWT access tokens
+        id: test-public
+        uses: ./
+        with:
+          port: '8485'
+          redirect-uri: 'http://localhost:3000/callback'
+          public-client: 'true'
+          access-token-format: jwt
+          access-token-ttl: '60'
+          enable-registration: 'true'
+
+      - name: Verify Public Client Outputs
+        env:
+          CLIENT_SECRET: ${{ steps.test-public.outputs.client-secret }}
+          TOKEN_ENDPOINT: ${{ steps.test-public.outputs.token-endpoint }}
+          REGISTRATION_ENDPOINT:
+            ${{ steps.test-public.outputs.registration-endpoint }}
+        run: |
+          test -z "$CLIENT_SECRET" || { echo "Public client must not have a secret"; exit 1; }
+          test "$TOKEN_ENDPOINT" = "http://localhost:8485/token" || { echo "Unexpected token-endpoint: $TOKEN_ENDPOINT"; exit 1; }
+          test -n "$REGISTRATION_ENDPOINT" || { echo "Missing registration-endpoint"; exit 1; }
+          curl --fail "$REGISTRATION_ENDPOINT" -X POST -H 'Content-Type: application/json' \
+            -d '{"redirect_uris":["http://localhost:3000/cb"]}'
